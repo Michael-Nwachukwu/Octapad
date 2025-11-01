@@ -27,6 +27,12 @@ cd lib/octant-v2-core && forge soldeer install && cd ../..
 forge install
 ```
 
+4. Install dependencies:
+```sh
+forge install
+forge soldeer install
+```
+
 ### Environment Setup
 
 1. Copy `.env.example` to `.env`
