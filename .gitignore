@@ -21,3 +21,8 @@ yarn.lock
 
 # Yarn PnP files
 .yarn/*
+
+
+# Soldeer
+/dependencies
+/lib
