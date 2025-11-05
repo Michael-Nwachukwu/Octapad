@@ -228,52 +228,115 @@ contract YieldDonatingStrategy is BaseStrategy {
     // ============================================
 
     /**
-     * @notice Gets the max amount of `asset` that can be withdrawn.
-     * @dev Can be overridden to implement withdrawal limits.
-     * @return . The available amount that can be withdrawn.
+     * @notice Returns maximum deposit limit
+     * @dev Queries vault's max deposit capacity
+     * @return Maximum additional assets that can be deposited
      */
-    function availableWithdrawLimit(address /*_owner*/) public view virtual override returns (uint256) {
-        return type(uint256).max;
+    function availableDepositLimit(address /*_owner*/) public view override returns (uint256) {
+        if (vaultHealth.isPaused) return 0;
+
+        try yieldSource.maxDeposit(address(this)) returns (uint256 maxDeposit) {
+            return maxDeposit;
+        } catch {
+            return 0;
+        }
     }
 
     /**
-     * @notice Gets the max amount of `asset` that can be deposited.
-     * @dev Can be overridden to implement deposit limits.
-     * @param . The address that will deposit.
-     * @return . The available amount that can be deposited.
+     * @notice Returns maximum withdrawal limit
+     * @dev Sums available liquidity from vault plus idle funds
+     * @return Maximum assets that can be withdrawn
      */
-    function availableDepositLimit(address /*_owner*/) public view virtual override returns (uint256) {
-        return type(uint256).max;
+    function availableWithdrawLimit(address /*_owner*/) public view override returns (uint256) {
+        uint256 idleAssets = asset.balanceOf(address(this));
+        uint256 vaultLiquidity = _getAvailableLiquidity();
+
+        return idleAssets + vaultLiquidity;
     }
 
     /**
-     * @dev Optional function for strategist to override that can
-     *  be called in between reports.
-     *
-     * If '_tend' is used tendTrigger() will also need to be overridden.
-     *
-     * This call can only be called by a permissioned role so may be
-     * through protected relays.
-     *
-     * This can be used to harvest and compound rewards, deposit idle funds,
-     * perform needed position maintenance or anything else that doesn't need
-     * a full report for.
-     *
-     *   EX: A strategy that can not deposit funds without getting
-     *       sandwiched can use the tend when a certain threshold
-     *       of idle to totalAssets has been reached.
-     *
-     * This will have no effect on PPS of the strategy till report() is called.
-     *
-     * @param _totalIdle The current amount of idle funds that are available to deploy.
+     * @notice Performs maintenance between reports
+     * @dev Deploys idle funds if above 1% threshold
+     * @param _totalIdle Current amount of idle funds
      */
-    function _tend(uint256 _totalIdle) internal virtual override {}
+    function _tend(uint256 _totalIdle) internal override {
+        uint256 totalAssets = TokenizedStrategy.totalAssets();
+        if (totalAssets == 0) return;
+
+        // Deploy idle funds if above threshold (1% by default)
+        uint256 idleThreshold = (totalAssets * minIdleThresholdBps) / MAX_BPS;
+        if (_totalIdle > idleThreshold) {
+            _deployFunds(_totalIdle);
+        }
+    }
 
     /**
-     * @dev Optional trigger to override if tend() will be used by the strategy.
-     * This must be implemented if the strategy hopes to invoke _tend().
-     *
-     * @return . Should return true if tend() should be called by keeper or false if not.
+     * @notice Determines if tend should be called
+     * @dev Returns true if idle funds > 1% of total assets
+     * @return shouldTend Whether tend should be called
+     */
+    function _tendTrigger() internal view override returns (bool) {
+        uint256 totalAssets = TokenizedStrategy.totalAssets();
+        if (totalAssets == 0) return false;
+
+        uint256 idleAssets = asset.balanceOf(address(this));
+
+        // Trigger if idle funds above threshold
+        uint256 idleThreshold = (totalAssets * minIdleThresholdBps) / MAX_BPS;
+        return idleAssets > idleThreshold;
+    }
+
+    /**
+     * @notice Emergency withdrawal after shutdown
+     * @dev Withdraws all funds from vault
+     * @param _amount Amount to withdraw (not used, withdraws everything)
+     */
+    function _emergencyWithdraw(uint256 _amount) internal override {
+        uint256 withdrawn = 0;
+
+        // Withdraw everything from vault
+        if (!vaultHealth.isPaused) {
+            uint256 shares = yieldSource.balanceOf(address(this));
+            if (shares > 0) {
+                try yieldSource.redeem(shares, address(this), address(this)) returns (uint256 assets) {
+                    withdrawn = assets;
+                } catch {
+                    // Log failure but continue
+                }
+            }
+        }
+
+        emit EmergencyWithdrawal(withdrawn);
+    }
+
+    // ============================================
+    // INTERNAL HELPER FUNCTIONS
+    // ============================================
+
+    /**
+     * @notice Gets current assets deployed in vault
+     * @dev Converts vault shares to assets
+     * @return Assets in vault
+     */
+    function _getVaultAssets() internal view returns (uint256) {
+        if (vaultHealth.isPaused) return 0;
+
+        try yieldSource.balanceOf(address(this)) returns (uint256 shares) {
+            if (shares == 0) return 0;
+
+            try yieldSource.convertToAssets(shares) returns (uint256 assets) {
+                return assets;
+            } catch {
+                return 0;
+            }
+        } catch {
+            return 0;
+        }
+    }
+
+    /**
+     * @notice Gets available withdrawal liquidity from vault
+     * @return Available liquidity
      */
     function _getAvailableLiquidity() internal view returns (uint256) {
         if (vaultHealth.isPaused) return 0;
