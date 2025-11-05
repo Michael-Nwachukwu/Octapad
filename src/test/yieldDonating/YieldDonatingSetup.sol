@@ -13,6 +13,10 @@ import {ITokenizedStrategy} from "@octant-core/core/interfaces/ITokenizedStrateg
 import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
 import {YieldDonatingTokenizedStrategy} from "@octant-core/strategies/yieldDonating/YieldDonatingTokenizedStrategy.sol";
 
+/**
+ * @title YieldDonatingSetup
+ * @notice Base test setup for YieldDonating strategy with Kalani vault
+ */
 contract YieldDonatingSetup is Test, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
@@ -30,7 +34,7 @@ contract YieldDonatingSetup is Test, IEvents {
     // YieldDonating specific variables
     bool public enableBurning = true;
     address public tokenizedStrategyAddress;
-    address public yieldSource;
+    address public yieldSource; // Kalani vault
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
@@ -44,9 +48,12 @@ contract YieldDonatingSetup is Test, IEvents {
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
-        // Read asset address from environment
-        address testAssetAddress = vm.envAddress("TEST_ASSET_ADDRESS");
-        require(testAssetAddress != address(0), "TEST_ASSET_ADDRESS not set in .env");
+        // Read configuration from environment or use defaults for Base network
+        address testAssetAddress = vm.envOr("TEST_ASSET_ADDRESS", address(0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)); // USDC on Base
+        address testYieldSource = vm.envOr("TEST_YIELD_SOURCE", address(0x7ea9FAC329636f532aE29E1c9EC9A964337bDA24)); // Kalani vault on Base
+
+        require(testAssetAddress != address(0), "TEST_ASSET_ADDRESS not set");
+        require(testYieldSource != address(0), "TEST_YIELD_SOURCE not set");
 
         // Set asset
         asset = ERC20(testAssetAddress);
@@ -57,9 +64,8 @@ contract YieldDonatingSetup is Test, IEvents {
         // Set max fuzz amount to 1,000,000 of the asset
         maxFuzzAmount = 1_000_000 * 10 ** decimals;
 
-        // Read yield source from environment
-        yieldSource = vm.envAddress("TEST_YIELD_SOURCE");
-        require(yieldSource != address(0), "TEST_YIELD_SOURCE not set in .env");
+        // Set yield source (Kalani vault)
+        yieldSource = testYieldSource;
 
         // Deploy YieldDonatingTokenizedStrategy implementation
         tokenizedStrategyAddress = address(new YieldDonatingTokenizedStrategy());
@@ -69,15 +75,13 @@ contract YieldDonatingSetup is Test, IEvents {
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        // factory = strategy.FACTORY(); // Remove this line as FACTORY is not implemented
-
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
-        // vm.label(factory, "factory"); // Factory not used in this setup
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(dragonRouter, "dragonRouter");
+        vm.label(yieldSource, "kalaniVault");
     }
 
     function setUpStrategy() public returns (address) {
@@ -87,7 +91,7 @@ contract YieldDonatingSetup is Test, IEvents {
                 new Strategy(
                     yieldSource,
                     address(asset),
-                    "YieldDonating Strategy",
+                    "Kalani USDC YieldDonating Strategy",
                     management,
                     keeper,
                     emergencyAdmin,
@@ -97,9 +101,6 @@ contract YieldDonatingSetup is Test, IEvents {
                 )
             )
         );
-
-        // The strategy should already have management set correctly during construction
-        // No need to call acceptManagement as there's no pending management
 
         return address(_strategy);
     }
@@ -123,7 +124,7 @@ contract YieldDonatingSetup is Test, IEvents {
         uint256 _totalAssets,
         uint256 _totalDebt,
         uint256 _totalIdle
-    ) public {
+    ) public view {
         uint256 _assets = _strategy.totalAssets();
         uint256 _balance = ERC20(_strategy.asset()).balanceOf(address(_strategy));
         uint256 _idle = _balance > _assets ? _assets : _balance;
@@ -155,5 +156,102 @@ contract YieldDonatingSetup is Test, IEvents {
         // Call using low-level call since setEnableBurning may not be in all interfaces
         (bool success, ) = address(strategy).call(abi.encodeWithSignature("setEnableBurning(bool)", _enableBurning));
         require(success, "setEnableBurning failed");
+    }
+
+    /**
+     * @notice Gets detailed asset breakdown from strategy
+     * @return vault Assets in vault
+     * @return idle Idle assets
+     * @return total Total assets
+     */
+    function getAssetBreakdown() public view returns (uint256 vault, uint256 idle, uint256 total) {
+        (bool success, bytes memory data) = address(strategy).staticcall(abi.encodeWithSignature("getAssetBreakdown()"));
+        if (success && data.length > 0) {
+            return abi.decode(data, (uint256, uint256, uint256));
+        }
+        // Fallback: calculate manually
+        vault = strategy.totalAssets() - asset.balanceOf(address(strategy));
+        idle = asset.balanceOf(address(strategy));
+        total = strategy.totalAssets();
+    }
+
+    /**
+     * @notice Triggers report as keeper
+     * @return profit Reported profit
+     * @return loss Reported loss
+     */
+    function report() public returns (uint256 profit, uint256 loss) {
+        vm.prank(keeper);
+        return strategy.report();
+    }
+
+    /**
+     * @notice Triggers tend as keeper
+     */
+    function tend() public {
+        vm.prank(keeper);
+        strategy.tend();
+    }
+
+    /**
+     * @notice Simulates time passing
+     * @param _seconds Seconds to skip
+     */
+    function skipTime(uint256 _seconds) public {
+        skip(_seconds);
+    }
+
+    /**
+     * @notice Simulates yield accrual by airdropping to vault
+     * @dev In real scenario, vaults accrue yield internally
+     *      For testing, we airdrop assets to simulate yield
+     * @param _vaultYield Yield to add to vault
+     */
+    function simulateYieldAccrual(uint256 _vaultYield) public {
+        if (_vaultYield > 0) {
+            airdrop(asset, yieldSource, _vaultYield);
+        }
+    }
+
+    /**
+     * @notice Checks vault health status
+     * @return isPaused Vault paused status
+     * @return failures Consecutive failures
+     * @return lastFailure Last failure timestamp
+     */
+    function checkVaultHealth() public view returns (bool isPaused, uint256 failures, uint256 lastFailure) {
+        (bool success, bytes memory data) = address(strategy).staticcall(abi.encodeWithSignature("getVaultHealth()"));
+        if (success && data.length > 0) {
+            return abi.decode(data, (bool, uint256, uint256));
+        }
+        return (false, 0, 0);
+    }
+
+    /**
+     * @notice Asserts approximate equality (within 0.01%)
+     * @param a First value
+     * @param b Second value
+     * @param message Error message
+     */
+    function assertApproxEq(uint256 a, uint256 b, string memory message) public pure {
+        uint256 delta = a > b ? a - b : b - a;
+        uint256 tolerance = (a * 1) / 10000; // 0.01% tolerance
+        require(delta <= tolerance, message);
+    }
+
+    /**
+     * @notice Gets maximum deposit limit
+     * @return Maximum deposit amount
+     */
+    function getMaxDeposit() public view returns (uint256) {
+        return strategy.availableDepositLimit(address(0));
+    }
+
+    /**
+     * @notice Gets maximum withdrawal limit
+     * @return Maximum withdrawal amount
+     */
+    function getMaxWithdraw() public view returns (uint256) {
+        return strategy.availableWithdrawLimit(address(0));
     }
 }
