@@ -53,12 +53,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     /// @notice Minimum idle threshold to trigger deployment (in basis points of total assets)
     uint256 public minIdleThresholdBps = 100; // 1%
 
-    /// @notice Minimum amount to deploy to vault ($1 in USDC, 6 decimals)
-    uint256 public constant MIN_DEPLOYMENT_AMOUNT = 1e6; // $1 USDC
-
-    /// @notice OG Points rewards contract (receives 50% of yield)
-    address public ogPointsRewards;
-
     /// @notice Vault health tracking
     struct VaultHealth {
         bool isPaused;
@@ -89,7 +83,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     event VaultPaused(address indexed vault, uint256 failures);
     event VaultResumed(address indexed vault);
     event EmergencyWithdrawal(uint256 amount);
-    event OGPointsRewardsUpdated(address indexed oldRewards, address indexed newRewards);
 
     // ============================================
     // ERRORS
@@ -158,17 +151,10 @@ contract YieldDonatingStrategy is BaseStrategy {
      * @notice Deploys funds to Kalani vault
      * @dev Respects vault pause status and health checks
      *      Implements try-catch for graceful failure handling
-     *      Only deploys if amount >= $1 (MIN_DEPLOYMENT_AMOUNT)
      * @param _amount Amount of assets to deploy
      */
     function _deployFunds(uint256 _amount) internal override {
         if (_amount == 0) return;
-
-        // Check if amount meets minimum deployment threshold ($1)
-        if (_amount < MIN_DEPLOYMENT_AMOUNT) {
-            // Keep funds idle if below $1 threshold
-            return;
-        }
 
         // Check if vault is paused
         if (vaultHealth.isPaused) {
@@ -270,31 +256,23 @@ contract YieldDonatingStrategy is BaseStrategy {
 
     /**
      * @notice Performs maintenance between reports
-     * @dev Deploys idle funds if:
-     *      1. Above 1% threshold OR
-     *      2. Above $1 minimum deployment amount
+     * @dev Deploys idle funds if above 1% threshold
      * @param _totalIdle Current amount of idle funds
      */
     function _tend(uint256 _totalIdle) internal override {
         uint256 totalAssets = TokenizedStrategy.totalAssets();
         if (totalAssets == 0) return;
 
-        // Deploy if idle funds meet minimum deployment amount ($1)
-        if (_totalIdle >= MIN_DEPLOYMENT_AMOUNT) {
-            uint256 idleThreshold = (totalAssets * minIdleThresholdBps) / MAX_BPS;
-
-            // Deploy if above threshold OR above minimum deployment amount
-            if (_totalIdle > idleThreshold || _totalIdle >= MIN_DEPLOYMENT_AMOUNT) {
-                _deployFunds(_totalIdle);
-            }
+        // Deploy idle funds if above threshold (1% by default)
+        uint256 idleThreshold = (totalAssets * minIdleThresholdBps) / MAX_BPS;
+        if (_totalIdle > idleThreshold) {
+            _deployFunds(_totalIdle);
         }
     }
 
     /**
      * @notice Determines if tend should be called
-     * @dev Returns true if:
-     *      1. Idle funds > 1% of total assets OR
-     *      2. Idle funds >= $1 (MIN_DEPLOYMENT_AMOUNT)
+     * @dev Returns true if idle funds > 1% of total assets
      * @return shouldTend Whether tend should be called
      */
     function _tendTrigger() internal view override returns (bool) {
@@ -302,11 +280,6 @@ contract YieldDonatingStrategy is BaseStrategy {
         if (totalAssets == 0) return false;
 
         uint256 idleAssets = asset.balanceOf(address(this));
-
-        // Trigger if idle funds meet minimum deployment amount
-        if (idleAssets >= MIN_DEPLOYMENT_AMOUNT) {
-            return true;
-        }
 
         // Trigger if idle funds above threshold
         uint256 idleThreshold = (totalAssets * minIdleThresholdBps) / MAX_BPS;
@@ -437,26 +410,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     function setMinIdleThreshold(uint256 _thresholdBps) external onlyManagement {
         require(_thresholdBps <= 1000, "Threshold too high"); // Max 10%
         minIdleThresholdBps = _thresholdBps;
-    }
-
-    /**
-     * @notice Sets OG Points rewards contract address
-     * @param _ogPointsRewards Address of OGPointsRewards contract
-     * @dev Only callable by management
-     *      This enables 50/50 profit split between Dragon Router and OG Points holders
-     *
-     *      NOTE: The actual 50/50 split is implemented in YieldDonatingTokenizedStrategy
-     *      which mints 50% of profit shares to Dragon Router and 50% to OGPointsRewards.
-     *      This standard YieldDonating strategy using BaseStrategy mints 100% to Dragon Router.
-     *
-     *      To achieve the 50/50 split, you need to:
-     *      1. Deploy YieldDonatingTokenizedStrategy (custom TokenizedStrategy)
-     *      2. Or manually transfer shares from Dragon Router to OGPointsRewards after reports
-     */
-    function setOGPointsRewards(address _ogPointsRewards) external onlyManagement {
-        require(_ogPointsRewards != address(0), "Zero address");
-        emit OGPointsRewardsUpdated(ogPointsRewards, _ogPointsRewards);
-        ogPointsRewards = _ogPointsRewards;
     }
 
     // ============================================

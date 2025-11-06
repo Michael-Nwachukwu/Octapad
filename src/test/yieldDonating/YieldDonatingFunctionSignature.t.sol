@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.25;
 
 import "forge-std/console2.sol";
 import {YieldDonatingSetup as Setup, ERC20, IStrategyInterface} from "./YieldDonatingSetup.sol";
 
+/**
+ * @title YieldDonatingFunctionSignatureTest
+ * @notice Tests for function signature collisions and interface compliance
+ */
 contract YieldDonatingFunctionSignatureTest is Setup {
     function setUp() public virtual override {
         super.setUp();
