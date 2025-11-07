@@ -151,12 +151,12 @@ contract OGPointsRewards is ReentrancyGuard {
      * @dev Updates reward debt and transfers USDC to caller
      */
     function claimRewards() external nonReentrant {
-        _updateRewards(msg.sender);
+        // Calculate pending BEFORE updating rewards
         uint256 pending = _pendingRewards(msg.sender);
 
         if (pending == 0) revert NoRewardsToClaim();
 
-        // Update accounting
+        // Update accounting - set debt to current accumulated rewards
         rewardDebt[msg.sender] = (ogPointsToken.balanceOf(msg.sender) * rewardsPerPoint) / 1e18;
         totalRewardsClaimed += pending;
         userRewardsClaimed[msg.sender] += pending;

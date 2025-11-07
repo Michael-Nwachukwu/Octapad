@@ -140,6 +140,9 @@ contract OctaPad is ReentrancyGuard, Ownable {
     /// @notice Uniswap v4 Pool Manager (for creating pools)
     address public uniswapPoolManager;
 
+    /// @notice YieldDonating Fee Hook (captures trading fees)
+    address public yieldDonatingFeeHook;
+
     /// @notice Platform sponsorship fee (default 100 USDC)
     uint128 public sponsorshipFee;
 
@@ -615,6 +618,15 @@ contract OctaPad is ReentrancyGuard, Ownable {
         vestingManager = VestingManager(newVestingManager_);
     }
 
+    /**
+     * @notice Set YieldDonating Fee Hook address
+     * @param hook_ Hook address
+     * @dev Must be set before creating campaigns if want trading fees captured
+     */
+    function setYieldDonatingFeeHook(address hook_) external onlyOwner {
+        yieldDonatingFeeHook = hook_;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -642,13 +654,13 @@ contract OctaPad is ReentrancyGuard, Ownable {
         usdc.forceApprove(uniswapPoolManager, liquidityUSDC_);
         IERC20(token_).forceApprove(uniswapPoolManager, liquidityTokens_);
 
-        // Create and initialize pool
+        // Create and initialize pool with YieldDonating hook (if configured)
         PoolKey memory key = PoolKey({
             currency0: address(usdc) < token_ ? Currency.wrap(address(usdc)) : Currency.wrap(token_),
             currency1: address(usdc) < token_ ? Currency.wrap(token_) : Currency.wrap(address(usdc)),
             fee: 3000,
             tickSpacing: 60,
-            hooks: IHooks(address(0))
+            hooks: IHooks(yieldDonatingFeeHook)  // ✅ Attach hook to capture trading fees
         });
 
         // Try to initialize pool (may already exist)

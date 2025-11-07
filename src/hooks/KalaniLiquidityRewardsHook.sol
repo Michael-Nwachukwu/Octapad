@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.25;
 
-import {BaseHook} from "@uniswap/v4-core/src/BaseHook.sol";
+import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {IERC20} from "@openzeppelin-contracts-5.3.0/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin-contracts-5.3.0/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -146,14 +147,14 @@ contract KalaniLiquidityRewardsHook is BaseHook {
      * 3. Update total shares
      * 4. Update reward debt for accurate reward calculation
      */
-    function afterAddLiquidity(
+    function _afterAddLiquidity(
         address sender,
         PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata params,
+        ModifyLiquidityParams calldata params,
         BalanceDelta delta,
-        bytes calldata hookData
-    ) external override returns (bytes4, BalanceDelta) {
-        require(msg.sender == address(poolManager), "KalaniLiquidityRewardsHook: only pool manager");
+        BalanceDelta, /* feesAccrued */
+        bytes calldata /* hookData */
+    ) internal override returns (bytes4, BalanceDelta) {
 
         PoolId poolId = key.toId();
 
@@ -190,14 +191,14 @@ contract KalaniLiquidityRewardsHook is BaseHook {
      * 3. Update user's shares
      * 4. Update total shares
      */
-    function afterRemoveLiquidity(
+    function _afterRemoveLiquidity(
         address sender,
         PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata params,
+        ModifyLiquidityParams calldata params,
         BalanceDelta delta,
-        bytes calldata hookData
-    ) external override returns (bytes4, BalanceDelta) {
-        require(msg.sender == address(poolManager), "KalaniLiquidityRewardsHook: only pool manager");
+        BalanceDelta, /* feesAccrued */
+        bytes calldata /* hookData */
+    ) internal override returns (bytes4, BalanceDelta) {
 
         PoolId poolId = key.toId();
 

@@ -1,5 +1,8 @@
 -include .env
 
+# Declare phony targets (these are commands, not files)
+.PHONY: update build size inspect test trace gas test-contract test-contract-gas trace-contract test-test test-test-trace trace-test snapshot snapshot-diff trace-setup trace-max coverage coverage-report coverage-debug coverage-html clean
+
 # deps
 update:; forge update
 build  :; forge build

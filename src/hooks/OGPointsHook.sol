@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {BaseHook} from "@uniswap/v4-core/src/BaseHook.sol";
+import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {IPoolManager, SwapParams} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
@@ -151,14 +151,13 @@ contract OGPointsHook is BaseHook {
      * 4. Award points to trader (mint OG Points tokens)
      * 5. Update statistics
      */
-    function afterSwap(
+    function _afterSwap(
         address sender,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
+        SwapParams calldata params,
         BalanceDelta delta,
-        bytes calldata hookData
-    ) external override returns (bytes4, int128) {
-        require(msg.sender == address(poolManager), "OGPointsHook: only pool manager");
+        bytes calldata /* hookData */
+    ) internal override returns (bytes4, int128) {
 
         // Skip if points token not set yet
         if (!pointsTokenSet) {

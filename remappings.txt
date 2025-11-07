@@ -4,3 +4,6 @@
 @tokenized-strategy-periphery/=dependencies/tokenized-strategy-periphery-3.0.2/
 @tokenized-strategy/=dependencies/tokenized-strategy-3.0.4/src
 forge-std-1.11.0/=dependencies/forge-std-1.11.0/
+@uniswap/v4-core/=dependencies/uniswap-hooks/lib/v4-core/
+@uniswap/v4-periphery/=dependencies/uniswap-hooks/lib/v4-periphery/
+solmate/=dependencies/uniswap-hooks/lib/v4-core/lib/solmate/

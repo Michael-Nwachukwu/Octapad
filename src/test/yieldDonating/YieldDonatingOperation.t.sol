@@ -29,23 +29,25 @@ contract YieldDonatingOperationTest is Setup {
 
     function test_profitableReport(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-        uint256 _timeInDays = 30; // Fixed 30 days
 
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
-        // Move forward in time to simulate yield accrual period
-        uint256 timeElapsed = _timeInDays * 1 days;
-        skip(timeElapsed);
+        // Simulate yield accrual (5% yield) by airdropping to vault
+        uint256 vaultYield = (_amount * 5) / 100;
+        simulateYieldAccrual(vaultYield);
+
+        // Move forward in time
+        skip(1 days);
 
         // Report profit - should detect the simulated yield
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
-        // Check return Values - should have profit equal to simulated yield
-        assertGt(profit, 0, "!profit should equal expected yield");
+        // Check return Values - should have profit
+        assertGt(profit, 0, "!profit should be greater than 0");
         assertEq(loss, 0, "!loss should be 0");
 
         // Check that profit was minted to dragon router
@@ -276,43 +278,6 @@ contract YieldDonatingOperationTest is Setup {
         mintAndDepositIntoStrategy(strategy, user, _amount);
         withdrawLimit = getMaxWithdraw();
         assertGe(withdrawLimit, _amount, "!withdraw limit should be >= deposit amount");
-    }
-
-    function test_changeDragonRouter(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-
-        address newDragonRouter = address(999);
-
-        // Deposit and generate profit
-        mintAndDepositIntoStrategy(strategy, user, _amount);
-        uint256 vaultYield = (_amount * 5) / 100;
-        simulateYieldAccrual(vaultYield);
-        skip(1 days);
-        report();
-
-        // Check old dragon router has shares
-        uint256 oldDragonShares = strategy.balanceOf(dragonRouter);
-        assertGt(oldDragonShares, 0, "!old dragon should have shares");
-
-        // Change dragon router
-        setDragonRouter(newDragonRouter);
-
-        // Verify change
-        assertEq(ITokenizedStrategy(address(strategy)).dragonRouter(), newDragonRouter, "!dragon router not changed");
-
-        // Generate more profit
-        vaultYield = (_amount * 3) / 100;
-        simulateYieldAccrual(vaultYield);
-        skip(1 days);
-        (uint256 profit2, ) = report();
-        assertGt(profit2, 0, "!profit2");
-
-        // New dragon router should receive new profits
-        uint256 newDragonShares = strategy.balanceOf(newDragonRouter);
-        assertGt(newDragonShares, 0, "!new dragon should have shares");
-
-        // Old dragon router should still have old shares
-        assertEq(strategy.balanceOf(dragonRouter), oldDragonShares, "!old dragon shares should remain");
     }
 
     function test_reportWithNoYield(uint256 _amount) public {

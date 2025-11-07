@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {BaseHook} from "@uniswap/v4-core/src/BaseHook.sol";
+import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {IPoolManager, SwapParams} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
@@ -135,15 +135,13 @@ contract YieldDonatingFeeHook is BaseHook {
      * 3. Accumulate in this contract
      * 4. If accumulated >= $1, deposit to strategy
      */
-    function afterSwap(
-        address sender,
+    function _afterSwap(
+        address, /* sender */
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
+        SwapParams calldata params,
         BalanceDelta delta,
-        bytes calldata hookData
-    ) external override returns (bytes4, int128) {
-        // Only pool manager can call hooks
-        require(msg.sender == address(poolManager), "YieldDonatingFeeHook: only pool manager");
+        bytes calldata /* hookData */
+    ) internal override returns (bytes4, int128) {
 
         // Extract fee from swap delta
         // In Uniswap v4, fees are captured as part of the swap delta
@@ -194,7 +192,7 @@ contract YieldDonatingFeeHook is BaseHook {
         accumulatedFees = 0;
 
         // Approve strategy to spend USDC
-        usdc.safeApprove(yieldStrategy, amount);
+        usdc.forceApprove(yieldStrategy, amount);
 
         // Call deposit on YieldDonating Strategy
         // Strategy will keep it idle if < $1, or deploy to Kalani if >= $1
