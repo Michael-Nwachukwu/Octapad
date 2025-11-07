@@ -229,7 +229,7 @@ contract OctaPad is ReentrancyGuard, Ownable {
         require(yieldStrategy_ != address(0), "OctaPad: zero strategy");
         require(vestingManager_ != address(0), "OctaPad: zero vesting");
         require(ogPointsToken_ != address(0), "OctaPad: zero og points");
-        require(uniswapPoolManager_ != address(0), "OctaPad: zero pool manager");
+        // uniswapPoolManager is optional - can be address(0) if not using Uniswap integration
 
         usdc = IERC20(usdc_);
         yieldStrategy = yieldStrategy_;
@@ -604,6 +604,15 @@ contract OctaPad is ReentrancyGuard, Ownable {
         require(newStrategy_ != address(0), "OctaPad: zero strategy");
         yieldStrategy = newStrategy_;
         emit YieldStrategyUpdated(newStrategy_);
+    }
+
+    /**
+     * @notice Update VestingManager address
+     * @param newVestingManager_ New vesting manager address
+     */
+    function setVestingManager(address newVestingManager_) external onlyOwner {
+        require(newVestingManager_ != address(0), "OctaPad: zero vesting manager");
+        vestingManager = VestingManager(newVestingManager_);
     }
 
     /*//////////////////////////////////////////////////////////////

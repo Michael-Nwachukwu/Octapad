@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.25;
 
 import {ERC20} from "@openzeppelin-contracts-5.3.0/contracts/token/ERC20/ERC20.sol";
 
@@ -214,9 +214,9 @@ contract OGPointsToken is ERC20 {
     /**
      * @notice Check if address is authorized minter
      * @param account Address to check
-     * @return isMinter Whether address is minter
+     * @return authorized Whether address is minter
      */
-    function isMinter(address account) external view returns (bool isMinter) {
+    function isMinter(address account) external view returns (bool authorized) {
         return minters[account];
     }
 

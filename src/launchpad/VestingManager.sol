@@ -7,7 +7,8 @@ import {SafeERC20} from "@openzeppelin-contracts-5.3.0/contracts/token/ERC20/uti
 /**
  * @title VestingManager
  * @notice Manages 3-month linear vesting for campaign creators
- * @dev All vested USDC is deposited to YieldDonating Strategy as it's released
+ * @dev Vested USDC is immediately deposited to YieldDonating Strategy to earn yield
+ * Beneficiaries can claim their vested shares over time
  */
 contract VestingManager {
     using SafeERC20 for IERC20;
@@ -100,6 +101,13 @@ contract VestingManager {
         // Transfer USDC from launchpad to this contract
         usdc.safeTransferFrom(msg.sender, address(this), amount);
 
+        // Immediately deposit to YieldDonating Strategy to start earning yield
+        usdc.forceApprove(yieldStrategy, amount);
+        (bool success, ) = yieldStrategy.call(
+            abi.encodeWithSignature("deposit(uint256,address)", uint256(amount), address(this))
+        );
+        require(success, "VestingManager: deposit failed");
+
         // Create vesting schedule
         vestingId = ++vestingCount;
         vestings[vestingId] = Vesting({
@@ -136,7 +144,7 @@ contract VestingManager {
 
         // Deposit released USDC to YieldDonating Strategy
         // Strategy will keep it idle if < $1, or deploy to Kalani if >= $1
-        usdc.safeApprove(yieldStrategy, releasable);
+        usdc.forceApprove(yieldStrategy, releasable);
 
         // Call deposit on strategy (assume it has deposit function)
         (bool success, ) = yieldStrategy.call(
@@ -238,7 +246,13 @@ contract VestingManager {
     /**
      * @notice Get vesting details
      * @param vestingId ID of the vesting schedule
-     * @return Vesting schedule details
+     * @return beneficiary Address of the vesting beneficiary
+     * @return totalAmount Total amount being vested
+     * @return released Amount already released
+     * @return startTime Vesting start timestamp
+     * @return duration Duration of vesting period
+     * @return revoked Whether vesting has been revoked
+     * @return releasable Amount currently claimable
      */
     function getVesting(uint256 vestingId)
         external
