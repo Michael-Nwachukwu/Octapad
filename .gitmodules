@@ -2,3 +2,6 @@
 	path = dependencies/octant-v2-core
 	url = https://github.com/golemfoundation/octant-v2-core
 	branch = develop
+[submodule "dependencies/uniswap-hooks"]
+	path = dependencies/uniswap-hooks
+	url = https://github.com/OpenZeppelin/uniswap-hooks

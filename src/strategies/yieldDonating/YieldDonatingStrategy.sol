@@ -11,18 +11,22 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
  * @author Octant Strategy Developer
  * @notice A production-ready YieldDonating strategy for Kalani vault on Base network
  * @dev Deposits USDC into Kalani ERC4626 vault, harvests yield, and donates 100% of profits
- *      to the configured donation address (Dragon Router).
+ *      to the configured donation address (typically PaymentSplitter for multi-beneficiary splits).
  *
  *      ARCHITECTURE:
- *      - Deposits: All funds deployed to Kalani vault
+ *      - Deposits: All funds deployed to Kalani vault (minimum $1 threshold)
  *      - Withdrawals: Intelligent withdrawal with liquidity checks
- *      - Tend: Deploys idle funds when threshold exceeded
+ *      - Tend: Deploys idle funds when >= $1 or above percentage threshold
  *      - Health Monitoring: Circuit breaker for vault failures
  *
- *      YIELD FLOW:
+ *      YIELD FLOW (PaymentSplitter Pattern):
  *      User deposits USDC → Strategy → Kalani Vault
  *                              ↓
- *      Vault generates yield → report() → mints shares to donation address
+ *      Vault generates yield → report() → mints 100% shares to PaymentSplitter
+ *                              ↓
+ *      PaymentSplitter splits shares 50/50:
+ *        - 50% Dragon Router (public goods)
+ *        - 50% OGPointsRewards (community rewards)
  *
  *      NETWORK: Designed for Base network
  *      - Kalani Vault: ERC4626-compliant vault (0x7ea9FAC329636f532aE29E1c9EC9A964337bDA24)
@@ -56,9 +60,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     /// @notice Minimum amount to deploy to vault ($1 in USDC, 6 decimals)
     uint256 public constant MIN_DEPLOYMENT_AMOUNT = 1e6; // $1 USDC
 
-    /// @notice OG Points rewards contract (receives 50% of yield)
-    address public ogPointsRewards;
-
     /// @notice Vault health tracking
     struct VaultHealth {
         bool isPaused;
@@ -89,7 +90,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     event VaultPaused(address indexed vault, uint256 failures);
     event VaultResumed(address indexed vault);
     event EmergencyWithdrawal(uint256 amount);
-    event OGPointsRewardsUpdated(address indexed oldRewards, address indexed newRewards);
 
     // ============================================
     // ERRORS
@@ -437,26 +437,6 @@ contract YieldDonatingStrategy is BaseStrategy {
     function setMinIdleThreshold(uint256 _thresholdBps) external onlyManagement {
         require(_thresholdBps <= 1000, "Threshold too high"); // Max 10%
         minIdleThresholdBps = _thresholdBps;
-    }
-
-    /**
-     * @notice Sets OG Points rewards contract address
-     * @param _ogPointsRewards Address of OGPointsRewards contract
-     * @dev Only callable by management
-     *      This enables 50/50 profit split between Dragon Router and OG Points holders
-     *
-     *      NOTE: The actual 50/50 split is implemented in YieldDonatingTokenizedStrategy
-     *      which mints 50% of profit shares to Dragon Router and 50% to OGPointsRewards.
-     *      This standard YieldDonating strategy using BaseStrategy mints 100% to Dragon Router.
-     *
-     *      To achieve the 50/50 split, you need to:
-     *      1. Deploy YieldDonatingTokenizedStrategy (custom TokenizedStrategy)
-     *      2. Or manually transfer shares from Dragon Router to OGPointsRewards after reports
-     */
-    function setOGPointsRewards(address _ogPointsRewards) external onlyManagement {
-        require(_ogPointsRewards != address(0), "Zero address");
-        emit OGPointsRewardsUpdated(ogPointsRewards, _ogPointsRewards);
-        ogPointsRewards = _ogPointsRewards;
     }
 
     // ============================================
