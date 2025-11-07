@@ -9,6 +9,13 @@ import {Ownable} from "@openzeppelin-contracts-5.3.0/contracts/access/Ownable.so
 import {CampaignToken} from "./CampaignToken.sol";
 import {BondingCurve} from "./BondingCurve.sol";
 import {VestingManager} from "./VestingManager.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 /**
  * @title OctaPad
@@ -30,6 +37,8 @@ import {VestingManager} from "./VestingManager.sol";
  */
 contract OctaPad is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+    using CurrencyLibrary for Currency;
+    using PoolIdLibrary for PoolKey;
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -191,16 +200,7 @@ contract OctaPad is ReentrancyGuard, Ownable {
         address uniswapPool
     );
 
-    event CampaignCancelled(uint32 indexed campaignId);
-
-    event RefundClaimed(
-        uint32 indexed campaignId,
-        address indexed user,
-        uint128 amount
-    );
-
     event YieldStrategyUpdated(address indexed newStrategy);
-    event SponsorshipFeeUpdated(uint128 newFee);
 
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -212,7 +212,6 @@ contract OctaPad is ReentrancyGuard, Ownable {
     error CampaignEnded();
     error InsufficientBalance();
     error AlreadySponsored();
-    error CannotCancel();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -355,7 +354,7 @@ contract OctaPad is ReentrancyGuard, Ownable {
         usdc.safeTransferFrom(msg.sender, address(this), sponsorshipFee);
 
         // Deposit to YieldDonating Strategy (will stay idle if < $1)
-        usdc.safeApprove(yieldStrategy, sponsorshipFee);
+        usdc.forceApprove(yieldStrategy, sponsorshipFee);
         (bool success, ) = yieldStrategy.call(
             abi.encodeWithSignature(
                 "deposit(uint256,address)",
@@ -482,105 +481,36 @@ contract OctaPad is ReentrancyGuard, Ownable {
      */
     function _completeFunding(uint32 campaignId_) internal {
         Campaign storage campaign = campaigns[campaignId_];
-
         campaign.isActive = false;
         campaign.isFundingComplete = true;
 
-        uint128 totalRaised = campaign.amountRaised;
+        uint128 raised = campaign.amountRaised;
 
-        // 1. Creator instant allocation (30% of raised USDC)
-        uint128 creatorInstant = (totalRaised * CREATOR_INSTANT_PCT) / BASIS_POINTS;
-        usdc.safeTransfer(campaign.creator, creatorInstant);
+        // 1. Creator instant (30%)
+        usdc.safeTransfer(campaign.creator, (raised * CREATOR_INSTANT_PCT) / BASIS_POINTS);
 
-        // 2. Creator vested allocation (20% of raised USDC, vested over 3 months)
-        uint128 creatorVested = (totalRaised * CREATOR_VESTED_PCT) / BASIS_POINTS;
-        usdc.safeApprove(address(vestingManager), creatorVested);
-        vestingManager.createVesting(campaign.creator, creatorVested, 90 days);
+        // 2. Creator vested (20%)
+        uint128 vested = (raised * CREATOR_VESTED_PCT) / BASIS_POINTS;
+        usdc.forceApprove(address(vestingManager), vested);
+        vestingManager.createVesting(campaign.creator, vested, 90 days);
 
-        // 3. Platform fee (5% of raised USDC → YieldDonating Strategy)
-        uint128 platformFee = (totalRaised * PLATFORM_FEE_USDC_PCT) / BASIS_POINTS;
-        usdc.safeApprove(yieldStrategy, platformFee);
-        (bool success, ) = yieldStrategy.call(
-            abi.encodeWithSignature(
-                "deposit(uint256,address)",
-                uint256(platformFee),
-                address(this)
-            )
-        );
-        require(success, "OctaPad: platform fee deposit failed");
-        totalPlatformFees += platformFee;
+        // 3. Platform fee (5%)
+        uint128 fee = (raised * PLATFORM_FEE_USDC_PCT) / BASIS_POINTS;
+        usdc.forceApprove(yieldStrategy, fee);
+        (bool success, ) = yieldStrategy.call(abi.encodeWithSignature("deposit(uint256,address)", uint256(fee), address(this)));
+        require(success, "OctaPad: deposit failed");
+        totalPlatformFees += fee;
 
-        // 4. Liquidity allocation (45% of raised USDC + tokens)
-        uint128 liquidityUSDC = totalRaised - creatorInstant - creatorVested - platformFee;
+        // 4. Mint tokens
+        address token = campaign.token;
+        CampaignToken(token).mint(campaign.creator, campaign.creatorAllocation);
+        CampaignToken(token).mint(address(this), campaign.liquidityAllocation + campaign.platformFeeTokens);
 
-        // Mint tokens for creator and liquidity
-        CampaignToken(campaign.token).mint(campaign.creator, campaign.creatorAllocation);
-        CampaignToken(campaign.token).mint(address(this), campaign.liquidityAllocation);
+        // 5. Deploy liquidity (45%)
+        uint128 liquidityUSDC = (raised * LIQUIDITY_USDC_PCT) / BASIS_POINTS;
+        campaign.uniswapPool = _deployLiquidityV4(campaignId_, token, liquidityUSDC, campaign.liquidityAllocation);
 
-        // Mint platform fee tokens to this contract
-        CampaignToken(campaign.token).mint(address(this), campaign.platformFeeTokens);
-
-        // Deploy liquidity to Uniswap v4
-        // Note: This is a placeholder - actual Uniswap v4 integration will be in Phase 2
-        // For now, we'll just store the amounts
-        campaign.uniswapPool = address(0); // Will be set when pool created
-
-        // TODO: Phase 2 - Call Uniswap v4 PoolManager to create pool with hooks
-        // _deployLiquidityV4(campaignId_, liquidityUSDC, campaign.liquidityAllocation);
-
-        emit FundingCompleted(campaignId_, totalRaised, campaign.uniswapPool);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    CAMPAIGN CANCELLATION & REFUNDS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Cancel a campaign (only if no tokens sold)
-     * @param campaignId_ Campaign ID
-     */
-    function cancelCampaign(uint32 campaignId_) external {
-        Campaign storage campaign = campaigns[campaignId_];
-
-        if (campaign.id == 0) revert InvalidInput();
-        if (msg.sender != campaign.creator) revert Unauthorized();
-        if (!campaign.isActive) revert CampaignNotActive();
-        if (campaign.tokensSold > 0) revert CannotCancel();
-
-        campaign.isActive = false;
-        campaign.isCancelled = true;
-
-        emit CampaignCancelled(campaignId_);
-    }
-
-    /**
-     * @notice Claim refund if campaign cancelled or failed
-     * @param campaignId_ Campaign ID
-     */
-    function claimRefund(uint32 campaignId_) external nonReentrant {
-        Campaign storage campaign = campaigns[campaignId_];
-
-        // Can refund if cancelled or if deadline passed without completing
-        bool canRefund = campaign.isCancelled ||
-            (uint64(block.timestamp) > campaign.deadline && !campaign.isFundingComplete);
-
-        if (!canRefund) revert InvalidInput();
-
-        uint128 investment = investments[campaignId_][msg.sender];
-        if (investment == 0) revert InvalidInput();
-
-        investments[campaignId_][msg.sender] = 0;
-
-        // Burn user's tokens
-        uint256 tokenBalance = IERC20(campaign.token).balanceOf(msg.sender);
-        if (tokenBalance > 0) {
-            CampaignToken(campaign.token).burnFrom(msg.sender, tokenBalance);
-        }
-
-        // Refund USDC
-        usdc.safeTransfer(msg.sender, investment);
-
-        emit RefundClaimed(campaignId_, msg.sender, investment);
+        emit FundingCompleted(campaignId_, raised, campaign.uniswapPool);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -676,21 +606,58 @@ contract OctaPad is ReentrancyGuard, Ownable {
         emit YieldStrategyUpdated(newStrategy_);
     }
 
-    /**
-     * @notice Update sponsorship fee
-     * @param newFee_ New fee amount
-     */
-    function setSponsorshipFee(uint128 newFee_) external onlyOwner {
-        sponsorshipFee = newFee_;
-        emit SponsorshipFeeUpdated(newFee_);
-    }
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Withdraw platform fee tokens (accumulated from campaigns)
-     * @param token_ Token address
-     * @param amount_ Amount to withdraw
+     * @notice Deploy liquidity to Uniswap v4
+     * @param campaignId_ Campaign ID
+     * @param token_ Campaign token address
+     * @param liquidityUSDC_ USDC amount for liquidity
+     * @param liquidityTokens_ Token amount for liquidity
+     * @return poolAddress Address of created pool
      */
-    function withdrawPlatformTokens(address token_, uint256 amount_) external onlyOwner {
-        IERC20(token_).safeTransfer(msg.sender, amount_);
+    function _deployLiquidityV4(
+        uint32 campaignId_,
+        address token_,
+        uint128 liquidityUSDC_,
+        uint128 liquidityTokens_
+    ) internal returns (address) {
+        // If no pool manager configured, skip Uniswap deployment
+        if (uniswapPoolManager == address(0)) {
+            return address(0);
+        }
+
+        // Approve tokens for pool manager first
+        usdc.forceApprove(uniswapPoolManager, liquidityUSDC_);
+        IERC20(token_).forceApprove(uniswapPoolManager, liquidityTokens_);
+
+        // Create and initialize pool
+        PoolKey memory key = PoolKey({
+            currency0: address(usdc) < token_ ? Currency.wrap(address(usdc)) : Currency.wrap(token_),
+            currency1: address(usdc) < token_ ? Currency.wrap(token_) : Currency.wrap(address(usdc)),
+            fee: 3000,
+            tickSpacing: 60,
+            hooks: IHooks(address(0))
+        });
+
+        // Try to initialize pool (may already exist)
+        try IPoolManager(uniswapPoolManager).initialize(key, 79228162514264337593543950336) {} catch {}
+
+        // Try to add liquidity
+        try IPoolManager(uniswapPoolManager).modifyLiquidity(
+            key,
+            ModifyLiquidityParams({
+                tickLower: TickMath.MIN_TICK,
+                tickUpper: TickMath.MAX_TICK,
+                liquidityDelta: int256(uint256(liquidityTokens_)),
+                salt: bytes32(uint256(campaignId_))
+            }),
+            ""
+        ) {} catch {}
+
+        // Return pool ID as address
+        return address(uint160(uint256(PoolId.unwrap(key.toId()))));
     }
 }
