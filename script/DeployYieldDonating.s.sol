@@ -79,7 +79,7 @@ contract DeployYieldDonating is Script {
         console2.log("\nDeployer:", deployer);
         console2.log("Deployer balance:", deployer.balance, "wei");
 
-        require(deployer.balance > 0.01 ether, "Insufficient deployer balance");
+        require(deployer.balance > 0.001 ether, "Insufficient deployer balance");
 
         vm.startBroadcast(deployerPrivateKey);
 
