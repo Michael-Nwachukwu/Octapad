@@ -92,12 +92,54 @@ KEY INSIGHT: More campaigns → More capital → More yield → Better rewards
 
 ```bash
 # Clone and install
-git clone <repo-url>
-cd octant-v2-strategy-foundry-mix
+git clone https://github.com/Michael-Nwachukwu/Octapad
+cd Octaoad
 forge install
+forge soldeer install
 
 # Run all tests
-forge test
+make test
+```
+
+```bash
+# Environment setup
+# .env.example
+
+# Base Network Configuration (for YieldDonating Strategy)
+BASE_RPC_URL=https://base-mainnet.g.alchemy.com/v2/Your_API_KEY
+
+# Base Network Addresses
+USDC_BASE=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+KALANI_VAULT_BASE=0x7ea9FAC329636f532aE29E1c9EC9A964337bDA24
+
+# Test Configuration
+# Leave empty to use Base network defaults (USDC + Kalani vault)
+TEST_ASSET_ADDRESS=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+TEST_YIELD_SOURCE=0x7ea9FAC329636f532aE29E1c9EC9A964337bDA24
+
+# Deployment Configuration (Update these for deployment)
+PRIVATE_KEY=
+MANAGEMENT_ADDRESS=
+KEEPER_ADDRESS=
+EMERGENCY_ADMIN_ADDRESS=
+DRAGON_ROUTER_ADDRESS=
+ADMIN_ADDRESS=
+
+# Etherscan API Key (for contract verification on Base network)
+ETHERSCAN_API_KEY=
+
+# Deployed Contracts
+YIELD_STRATEGY_ADDRESS=
+OG_POINTS_TOKEN_ADDRESS=
+OG_POINTS_REWARDS_ADDRESS=
+PAYMENT_SPLITTER_ADDRESS=
+OWNER_ADDRESS=
+
+
+VESTING_MANAGER_ADDRESS=
+OCTAPAD_ADDRESS=
+
+#see deployed_Addresses file
 ```
 
 ---
