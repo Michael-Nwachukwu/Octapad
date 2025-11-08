@@ -3,7 +3,7 @@
 > **Regenerative Token Launchpad** - Where platform fees earn yield for public goods
 
 [![Tests](https://img.shields.io/badge/tests-121%2F121%20passing-brightgreen)]()
-[![Network](https://img.shields.io/badge/network-Base-blue)]()
+[![Network](https://img.shields.io/badge/network-Base%20Mainnet%20(Live)-blue)]()
 [![Solidity](https://img.shields.io/badge/solidity-0.8.25-orange)]()
 
 ---
