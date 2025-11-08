@@ -26,7 +26,6 @@ yarn.lock
 # Soldeer
 /dependencies
 /lib
-DEPLOYMENT_GUIDE.md
-DEPLOYMENT_QUICKSTART.md
 README_OLD.md
 PROJECT_OVERVIEW.md
+/script/DeployAll.s.sol

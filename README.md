@@ -8,101 +8,83 @@
 
 ---
 
-## 🎯 One-Sentence Pitch
+## 🎯 What It Is
 
-**OctaPad** is a token launchpad that automatically deposits **all platform fees** into Octant's YieldDonating Strategy, creating a sustainable revenue stream that funds public goods while rewarding campaign participants.
+**OctaPad** is a token launchpad integrated with **Octant's YieldDonating Strategy** to create a **regenerative funding model** where platform fees automatically generate yield for public goods. Every campaign launched on OctaPad contributes capital to a yield-generating strategy, creating a sustainable revenue stream that benefits both the ecosystem and campaign participants.
 
----
-
-## ✅ All Tests Passing
-
-```bash
-forge test --match-path test/OctaPadCore.t.sol -vv
-
-✅ test_SponsorshipFeeDepositsToStrategy()    - Sponsorship fees → Strategy
-✅ test_PlatformFeeDepositsToStrategy()       - Platform fees → Strategy  
-✅ test_HarvestAndReportFromStrategy()        - Strategy earns yield
-✅ test_YieldSplit50_50()                     - 50/50 profit split verified
-✅ test_CoreFlow_CompleteCampaign()          - Complete lifecycle works
-✅ test_MultipleCampaigns()                  - Multiple campaigns supported
-
-Suite result: ok. 6 passed; 0 failed; 0 skipped
-```
-
----
-
-## 💰 Fee Flow Verification
-
-### All 4 Revenue Streams Verified ✅
-
-For a **$10,000 campaign:**
-
-```
-Revenue Stream #1: Sponsorship Fee
-├─ Amount: $100 (per campaign)
-├─ Flow: Creator → OctaPad → YieldDonating Strategy
-├─ Timing: Immediate
-└─ Test: test_SponsorshipFeeDepositsToStrategy() ✅
-
-Revenue Stream #2: Platform Fee  
-├─ Amount: $500 (5% of raised)
-├─ Flow: Campaign → OctaPad → YieldDonating Strategy
-├─ Timing: On campaign completion
-└─ Test: test_PlatformFeeDepositsToStrategy() ✅
-
-Revenue Stream #3: Vested Funds (INNOVATIVE!)
-├─ Amount: $2,000 (20% of raised)
-├─ Flow: Campaign → VestingManager → YieldDonating Strategy (IMMEDIATE)
-├─ Timing: Deposited immediately, vests over 90 days
-├─ Innovation: Earns yield during vesting instead of sitting idle
-└─ Test: test_PlatformFeeDepositsToStrategy() ✅
-
-Revenue Stream #4: Trading Fees
-├─ Amount: 50% of all Uniswap swap fees
-├─ Flow: Uniswap Pool → YieldDonatingFeeHook → YieldDonating Strategy
-├─ Timing: Continuous (auto-deposit when >$1)
-└─ Test: test_YieldSplit50_50() ✅
-
-TOTAL TO STRATEGY: $2,600 (26% of raised capital) + ongoing trading fees
-```
+### Key Innovation
+Instead of keeping fees idle or immediately spending them, **all platform revenue flows into a yield-generating strategy** that:
+- Earns continuous yield from Kalani vault on Base
+- Distributes 50% of profits to public goods (via Dragon Router)
+- Distributes 50% of profits to campaign participants (OG Points holders)
 
 ---
 
 ## 🔄 The Regenerative Flywheel
 
 ```
-              More Campaigns
-                    ↑
-                    │
-            Better Rewards
-                    ↑
-                    │
-              More Yield
-                    ↑
-                    │
-            More Capital  
-                    ↑
-                    │
-          Platform Growth
-                    ↑
-                    │
-            Happy Users ─────┐
-                             │
-                             └──► (Loop continues)
+┌─────────────────────────────────────────────────────────────────┐
+│                    THE REGENERATIVE FLYWHEEL                     │
+│                                                                   │
+│  ┌──────────────┐                                                │
+│  │   Creators   │                                                │
+│  │ Launch Token │                                                │
+│  │  Campaigns   │                                                │
+│  └──────┬───────┘                                                │
+│         │                                                         │
+│         │ Sponsorship (100 USDC)                                │
+│         │ Platform Fee (5%)                                      │
+│         │ Vested Funds (20%)                                     │
+│         │ Trading Fees (50% of swaps)                           │
+│         ▼                                                         │
+│  ┌─────────────────────────────┐                                │
+│  │   YieldDonating Strategy    │                                │
+│  │  ┌────────────────────────┐ │                                │
+│  │  │   Kalani Vault (Base)  │ │◄─── Deposits USDC             │
+│  │  │                        │ │                                │
+│  │  │  Earns Yield (APY%)    │ │──► Generates Profit            │
+│  │  └────────────────────────┘ │                                │
+│  │                              │                                │
+│  │  Profit = 100% minted as    │                                │
+│  │  shares to PaymentSplitter  │                                │
+│  └──────────────┬───────────────┘                                │
+│                 │                                                 │
+│                 │ Profit Shares                                  │
+│                 ▼                                                 │
+│  ┌──────────────────────────────────────┐                       │
+│  │      PaymentSplitter (50/50)         │                       │
+│  ├──────────────────┬───────────────────┤                       │
+│  │  50% shares      │    50% shares     │                       │
+│  ▼                  ▼                    │                       │
+│ ┌──────────────┐  ┌─────────────────┐  │                       │
+│ │Dragon Router │  │ OG Points Holders│  │                       │
+│ │(Public Goods)│  │   (Participants) │  │                       │
+│ └──────┬───────┘  └────────┬─────────┘  │                       │
+│        │                   │             │                       │
+│        │                   │ Redeem      │                       │
+│        │                   │ for USDC    │                       │
+│        │                   ▼             │                       │
+│        │          ┌─────────────────┐   │                       │
+│        │          │ Higher Rewards  │   │                       │
+│        │          │ = More Campaigns│───┤────────┐              │
+│        │          └─────────────────┘   │        │              │
+│        │                                │        │              │
+│        │  Funds Public                  │        │              │
+│        │  Good Projects                 │        │              │
+│        ▼                                │        │              │
+│   ┌──────────────────┐                  │        │              │
+│   │ Ecosystem Growth │                  │        │              │
+│   │  More Users &    │                  │        │              │
+│   │ More Campaigns   │──────────────────┘        │              │
+│   └──────────────────┘                           │              │
+│             │                                     │              │
+│             └─────────────────────────────────────┘              │
+│                   FLYWHEEL ACCELERATES                           │
+└─────────────────────────────────────────────────────────────────┘
 
-KEY INSIGHT: Each campaign strengthens the ecosystem!
+KEY INSIGHT: More campaigns → More capital → More yield → Better rewards
+→ More campaigns... The flywheel keeps spinning!
 ```
-
----
-
-## 📁 Documentation
-
-| Document | Purpose |
-|----------|---------|
-| **[README.md](./README.md)** | Quick start & overview (this file) |
-| **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | Complete documentation with ASCII diagrams |
-| **[HACKATHON_SUMMARY.md](./HACKATHON_SUMMARY.md)** | Concise project summary |
-| **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** | Deployment instructions |
 
 ---
 
@@ -114,8 +96,8 @@ git clone <repo-url>
 cd octant-v2-strategy-foundry-mix
 forge install
 
-# Run all tests (should see 6/6 passing)
-forge test --match-path test/OctaPadCore.t.sol -vv
+# Run all tests
+forge test
 ```
 
 ---
@@ -255,26 +237,6 @@ PLUS: Ongoing trading fees from 10 Uniswap pools!
 
 ---
 
-## 🚀 Deployment
-
-```bash
-# Set environment variables
-export BASE_RPC_URL=https://mainnet.base.org
-export DEPLOYER_ADDRESS=your_deployer
-export ADMIN_ADDRESS=your_admin
-export DRAGON_ROUTER_ADDRESS=dragon_router
-export YIELD_STRATEGY_ADDRESS=strategy_address
-
-# Deploy contracts
-forge script script/DeployOctaPad.s.sol:DeployOctaPad \
-  --rpc-url $BASE_RPC_URL \
-  --broadcast
-```
-
-See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for complete instructions.
-
----
-
 ## 📝 Contract Addresses (Base)
 
 ### Core Dependencies
@@ -282,33 +244,28 @@ See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for complete instructions.
 - **Kalani Vault**: `0x7ea9FAC329636f532aE29E1c9EC9A964337bDA24`
 
 ### OctaPad Contracts (To be deployed)
-- **YieldDonatingStrategy**: TBD
-- **OctaPad**: TBD
-- **OGPointsToken**: TBD
-- **OGPointsRewards**: TBD
-- **VestingManager**: TBD
-- **PaymentSplitter**: TBD
-- **YieldDonatingFeeHook**: TBD
-- **OctaPadDEX**: TBD
+- **YieldDonatingStrategy**: 0xD148CbC97d825dbEBe2bF03DfbE634972CE1F4dc
+- **OctaPad**: 0x583518a01856027EF42C55f4762F156971f6A0c8
+- **OGPointsToken**: 0x4d0884D03f2fA409370D0F97c6AbC4dA4A8F03d6
+- **OGPointsRewards**: 0x9f3eB17a20a4E57Ed126F34061b0E40dF3a4f5C2
+- **VestingManager**: 0xfe7da8f89dc0acf86406457d8ed5637c71e1fb25
+- **PaymentSplitter**: 0xb3A08f77D37904d42BD5599daCcDD405a42C6A1E (proxy)
+- **OctaPadDEX**: 0x9d6e23b6B029BEaC49C43679304D32fDBf88F42A
 
 ---
 
 ## 📚 Key Files
 
 ### Core Contracts
+- `src/strategies/YieldDonating/YieldDonatingStrategy.sol` - Strategy Implementation
 - `src/launchpad/OctaPad.sol` - Core launchpad (deposits fees to strategy)
 - `src/launchpad/VestingManager.sol` - Immediate strategy deposits
 - `src/launchpad/OGPointsRewards.sol` - Proportional yield distribution
 - `src/hooks/YieldDonatingFeeHook.sol` - Captures 50% of swap fees
 
 ### Tests
-- `test/OctaPadCore.t.sol` - 6 integration tests (all passing ✅)
-
-### Documentation
-- `README.md` - This file
-- `PROJECT_OVERVIEW.md` - Complete documentation with diagrams
-- `HACKATHON_SUMMARY.md` - Project summary
-- `DEPLOYMENT_GUIDE.md` - Deployment instructions
+- `test/` - 6 integration tests files (all passing ✅)
+- `src/strategies/test/yieldDonating` - 4 Fork tests files (all passing ✅)
 
 ---
 
@@ -330,12 +287,6 @@ See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for complete instructions.
 
 ---
 
-### Quick Links
-
-[📖 Full Docs](./PROJECT_OVERVIEW.md) | [🚀 Deploy](./DEPLOYMENT_GUIDE.md) | [🧪 Tests](#quick-start) | [💡 Summary](./HACKATHON_SUMMARY.md)
-
----
-
-**Project Status:** ✅ All core features implemented | ✅ 6/6 tests passing | ✅ Ready for deployment
+**Project Status:** ✅ All core features implemented | ✅ Integration tests passing | ✅ Deployed on base mainnet
 
 </div>
