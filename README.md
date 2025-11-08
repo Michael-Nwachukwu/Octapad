@@ -150,6 +150,65 @@ OCTAPAD_ADDRESS=
 
 ---
 
+## 🚀 Live Interaction Script
+
+Live Interaction scripts are provided at [InteractYieldDonating.s.sol](https://github.com/Michael-Nwachukwu/Octapad/blob/main/script/InteractYieldDonating.s.sol)
+
+#### Covers
+
+- deposit: Deposit USDC to strategy
+- withdraw: Withdraw USDC from strategy
+- report: Trigger harvest and report
+- deployFunds: Deploy idle USDC to Kalani
+- freeFunds: Withdraw USDC from Kalani to idle
+- status: View strategy status
+
+```bash
+# Usage Examples:
+
+# 1. Deposit $1 USDC:
+ forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "deposit(uint256)" 1000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 2. Report (harvest):
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "report()" \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 3. Deploy idle funds to Kalani:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "deployFunds(uint256)" 5000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+
+# 4. Free funds from Kalani:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "freeFunds(uint256)" 5000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 5. View status (no broadcast needed):
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "status()" \
+    --rpc-url $BASE_RPC_URL
+ 
+# 6. Withdraw $5:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "withdraw(uint256)" 1000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+```
+
+---
+
 ## 💡 Key Innovation: Vesting Capital Efficiency
 
 **Traditional Vesting:**
