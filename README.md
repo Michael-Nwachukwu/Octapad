@@ -2,7 +2,7 @@
 
 > **Regenerative Token Launchpad** - Where platform fees earn yield for public goods
 
-[![Tests](https://img.shields.io/badge/tests-6%2F6%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-121%2F121%20passing-brightgreen)]()
 [![Network](https://img.shields.io/badge/network-Base-blue)]()
 [![Solidity](https://img.shields.io/badge/solidity-0.8.25-orange)]()
 
@@ -100,6 +100,12 @@ forge soldeer install
 # Run all tests
 make test
 ```
+
+All tests should pass
+
+<img width="1440" height="900" alt="Screenshot 2025-11-08 at 1 43 36 AM" src="https://github.com/user-attachments/assets/d5c290fb-7dc2-4415-be70-6c2d806adb02" />
+
+---
 
 ```bash
 # Environment setup
