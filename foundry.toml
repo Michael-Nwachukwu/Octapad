@@ -7,6 +7,10 @@ via_ir = true
 optimizer = true
 optimizer_runs = 200
 
+# Etherscan configuration for contract verification
+[etherscan]
+base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
+
 
 [soldeer]
 recursive_deps = true
