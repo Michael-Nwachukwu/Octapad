@@ -2,8 +2,8 @@
 
 > **Regenerative Token Launchpad** - Where platform fees earn yield for public goods
 
-[![Tests](https://img.shields.io/badge/tests-6%2F6%20passing-brightgreen)]()
-[![Network](https://img.shields.io/badge/network-Base-blue)]()
+[![Tests](https://img.shields.io/badge/tests-121%2F121%20passing-brightgreen)]()
+[![Network](https://img.shields.io/badge/network-Base%20Mainnet%20(Live)-blue)]()
 [![Solidity](https://img.shields.io/badge/solidity-0.8.25-orange)]()
 
 ---
@@ -101,6 +101,12 @@ forge soldeer install
 make test
 ```
 
+All tests should pass
+
+<img width="1440" height="900" alt="Screenshot 2025-11-08 at 1 43 36 AM" src="https://github.com/user-attachments/assets/d5c290fb-7dc2-4415-be70-6c2d806adb02" />
+
+---
+
 ```bash
 # Environment setup
 # .env.example
@@ -140,6 +146,65 @@ VESTING_MANAGER_ADDRESS=
 OCTAPAD_ADDRESS=
 
 #see deployed_Addresses file
+```
+
+---
+
+## 🚀 Live Interaction Script
+
+Live Interaction scripts are provided at [InteractYieldDonating.s.sol](https://github.com/Michael-Nwachukwu/Octapad/blob/main/script/InteractYieldDonating.s.sol)
+
+#### Covers
+
+- deposit: Deposit USDC to strategy
+- withdraw: Withdraw USDC from strategy
+- report: Trigger harvest and report
+- deployFunds: Deploy idle USDC to Kalani
+- freeFunds: Withdraw USDC from Kalani to idle
+- status: View strategy status
+
+```bash
+# Usage Examples:
+
+# 1. Deposit $1 USDC:
+ forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "deposit(uint256)" 1000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 2. Report (harvest):
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "report()" \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 3. Deploy idle funds to Kalani:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "deployFunds(uint256)" 5000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+
+# 4. Free funds from Kalani:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "freeFunds(uint256)" 5000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
+ 
+# 5. View status (no broadcast needed):
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "status()" \
+    --rpc-url $BASE_RPC_URL
+ 
+# 6. Withdraw $5:
+  forge script script/InteractYieldDonating.s.sol:InteractYieldDonating \
+    --sig "withdraw(uint256)" 1000000 \
+    --rpc-url $BASE_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
 ```
 
 ---
