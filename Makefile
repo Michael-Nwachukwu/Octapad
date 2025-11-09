@@ -20,7 +20,9 @@ FORK_URL := $(shell grep '^BASE_RPC_URL=' .env | cut -d '=' -f2-)
 test := test_
 
 # local tests without fork
-test  :; forge test -vv --fork-url ${FORK_URL}
+# Pin to specific block to ensure consistent test results
+# Block 37900000 is recent enough for all contracts to exist
+test  :; forge test -vv --fork-url ${FORK_URL} --fork-block-number 37900000
 trace  :; forge test -vvv --fork-url ${FORK_URL}
 gas  :; forge test --fork-url ${FORK_URL} --gas-report
 test-contract  :; forge test -vv --match-contract $(contract) --fork-url ${FORK_URL}
